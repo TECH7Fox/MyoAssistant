@@ -1,0 +1,28 @@
+import org.gradle.api.initialization.resolve.RepositoriesMode
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/TECH7Fox/myolink")
+            credentials {
+                username = "TECH7Fox"
+                password = "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"
+            }
+        }
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "Myo Assistant"
+include ':app'
