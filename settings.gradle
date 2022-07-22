@@ -8,6 +8,10 @@ pluginManagement {
 
     }
 }
+
+Properties properties = new Properties()
+properties.load(file('local.properties').newDataInputStream())
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -15,8 +19,8 @@ dependencyResolutionManagement {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/TECH7Fox/myolink")
             credentials {
-                username = "TECH7Fox"
-                password = "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"
+                username = properties.getProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = properties.getProperty("gpr.key") ?: System.getenv("TOKEN")
             }
         }
         google()
