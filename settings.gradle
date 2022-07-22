@@ -16,8 +16,8 @@ dependencyResolutionManagement {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/TECH7Fox/myolink")
             credentials {
-                username = properties.get("gpr.user") ?: System.getenv("USERNAME")
-                password = properties.get("gpr.key") ?: System.getenv("TOKEN")
+                username = System.getenv("USERNAME") ?: properties.get("gpr.user")
+                password = System.getenv("TOKEN") ?: properties.get("gpr.key")
             }
         }
         google()
