@@ -5,8 +5,9 @@
       <map>
         <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/layout/activity_main.xml" value="0.18" />
         <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/layout/content_main.xml" value="0.2" />
-        <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/layout/fragment_first.xml" value="0.18" />
+        <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/layout/fragment_first.xml" value="0.2" />
         <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/layout/fragment_second.xml" value="0.358695652173913" />
+        <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/layout/view_myo.xml" value="0.33" />
         <entry key="..\:/Users/jordy/AndroidStudioProjects/MyoAssistant/app/src/main/res/menu/menu_main.xml" value="0.22552083333333334" />
       </map>
     </option>
