@@ -2,6 +2,7 @@ package com.tech7fox.myoassistant
 
 import android.Manifest
 import android.os.Bundle
+import android.os.Handler
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -69,16 +70,13 @@ class FirstFragment : Fragment(), ConnectionListener {
                         null
                     )
                     myo.writeUnlock(MyoCmds.UnlockType.HOLD, null)
-                    val tekst = TextView(requireContext())
-                    tekst.text = "myo: ${myo.deviceAddress}"
 
                     lifecycleScope.launch {
                         Logy.w("runnable", "Adding myoview to list!");
-                        myoview.setMyo(myo);
-                        binding.listMyos.addView(myoview)
-                        Logy.w("runnable", "Adding textview to list!");
-                        binding.listMyos.addView(tekst)
-                        Logy.w("runnable", "done Adding views to list!");
+                        Handler().postDelayed({
+                            myoview.setMyo(myo);
+                            binding.listMyos.addView(myoview)
+                        }, 5000)
                     }
 
                     myos.add(myo.deviceAddress)

@@ -1,17 +1,20 @@
 package com.tech7fox.myoassistant
 
+import android.app.AlertDialog
 import android.content.Context
+import android.graphics.Color
+import android.os.Handler
 import android.util.AttributeSet
+import android.view.View.OnClickListener
+import android.widget.EditText
 import android.widget.RelativeLayout
 import android.widget.TextView
-import androidx.lifecycle.findViewTreeLifecycleOwner
+import android.widget.Toast
 import com.tech7fox.myolink.Myo
 import com.tech7fox.myolink.MyoCmds
+import com.tech7fox.myolink.MyoInfo
 import com.tech7fox.myolink.msgs.MyoMsg
 import com.tech7fox.myolink.tools.Logy
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import java.util.logging.Handler
 
 class MyoView @JvmOverloads constructor(
     context: Context,
@@ -25,7 +28,6 @@ class MyoView @JvmOverloads constructor(
     private lateinit var tv_name: TextView
     private lateinit var tv_battery: TextView
     private lateinit var tv_firmware: TextView
-    private lateinit var tv_serialnumber: TextView
     private lateinit var tv_address: TextView
 
     init {
@@ -38,12 +40,13 @@ class MyoView @JvmOverloads constructor(
         Logy.w("MYO SET!", myo.deviceAddress)
         _myo = myo;
 
-        android.os.Handler().postDelayed(Runnable {
-            _myo.readDeviceName(this)
-            _myo.readFirmware(this)
-            _myo.readBatteryLevel(this)
-        }, 5000);
+        Handler().post {
+            tv_address.text = _myo.deviceAddress;
+        }
 
+        _myo.readDeviceName(this)
+        _myo.readFirmware(this)
+        _myo.readBatteryLevel(this)
     }
 
     override fun onFinishInflate() {
@@ -51,9 +54,42 @@ class MyoView @JvmOverloads constructor(
         tv_name = findViewById<TextView>(R.id.tv_title)
         tv_battery = findViewById<TextView>(R.id.tv_batterylevel)
         tv_firmware = findViewById<TextView>(R.id.tv_firmware)
-        tv_serialnumber = findViewById<TextView>(R.id.tv_serialnumber)
         tv_address = findViewById<TextView>(R.id.tv_address)
         super.onFinishInflate()
+    }
+
+    override fun setOnClickListener(l: OnClickListener?) {
+        Logy.w("myo", "click detected!")
+        super.setOnClickListener(l)
+    }
+
+    override fun onAttachedToWindow() {
+
+        this.setOnClickListener {
+            _myo.writeVibrate(MyoCmds.VibrateType.LONG, null)
+            _myo.writeLEDs(Color.valueOf(0f, 100f, 185f), Color.valueOf(0f, 185f, 0f), null)
+        }
+
+        tv_name.setOnClickListener {
+            val dialogBuilder = AlertDialog.Builder(
+                context
+            )
+                .setTitle("Rename")
+            val dialogContext = dialogBuilder.context
+            val editText = EditText(dialogContext)
+            editText.setText(_myo.deviceName)
+            dialogBuilder.setPositiveButton(
+                "Change"
+            ) { _, _ -> _myo.writeDeviceName(editText.text.toString(), null) }
+            dialogBuilder.setView(editText).show()
+        }
+
+        super.onAttachedToWindow()
+    }
+
+    override fun callOnClick(): Boolean {
+        Logy.w("myo", "click detected!")
+        return super.callOnClick()
     }
 
     override fun setOnLongClickListener(l: OnLongClickListener?) {
@@ -63,23 +99,20 @@ class MyoView @JvmOverloads constructor(
     }
 
     override fun onFirmwareRead(p0: Myo?, p1: MyoMsg?, p2: String?) {
-        Logy.w("firmware", p2)
-        handler.post(Runnable {
+        handler.post {
             tv_firmware.text = p2;
-        })
+        }
     }
 
     override fun onBatteryLevelRead(p0: Myo?, p1: MyoMsg?, p2: Int) {
-        Logy.w("battery", p2.toString())
-        handler.post(Runnable {
+        handler.post {
             tv_battery.text = "Battery: $p2%";
-        })
+        }
     }
 
     override fun onDeviceNameRead(p0: Myo?, p1: MyoMsg?, p2: String?) {
-        Logy.w("name", p2)
-        handler.post(Runnable {
+        handler.post {
             tv_name.text = p2
-        })
+        }
     }
 }
