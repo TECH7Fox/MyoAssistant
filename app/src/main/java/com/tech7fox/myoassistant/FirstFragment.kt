@@ -53,7 +53,7 @@ class FirstFragment : Fragment(), ConnectionListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         myoConnector = MyoConnector(requireContext())
 
-        myoConnector?.scan(5000, MyoConnector.ScannerCallback {
+        myoConnector?.scan(50000, MyoConnector.ScannerCallback {
             Logy.w("scannerCallback", "MYOS:" + it.size);
             for (myo in it) {
                 Logy.w("Myo handler", "deviceName is ${myo.deviceAddress}")
