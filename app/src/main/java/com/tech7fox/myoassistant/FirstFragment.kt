@@ -1,8 +1,15 @@
 package com.tech7fox.myoassistant
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,21 +28,38 @@ import kotlinx.coroutines.launch
 /**
  * A simple [Fragment] subclass as the second destination in the navigation.
  */
-class FirstFragment : Fragment(), ConnectionListener {
+class FirstFragment : Fragment() {
 
     private var _binding: FragmentFirstBinding? = null
     private var scanning = false
-    private var myos: MutableList<String> = mutableListOf()
-    private var myoConnector: MyoConnector? = null
 
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
 
+    private lateinit var mService: MyosService
+    private var mBound: Boolean = false
+
+    /** Defines callbacks for service binding, passed to bindService()  */
+    private val connection = object : ServiceConnection {
+
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            val binder = service as MyosService.LocalBinder
+            mService = binder.getService()
+            mService.fragment = this@FirstFragment;
+            mBound = true
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            mBound = false
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
 
         Logy.sLoglevel = Logy.NORMAL;
 
@@ -51,38 +75,16 @@ class FirstFragment : Fragment(), ConnectionListener {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        myoConnector = MyoConnector(requireContext())
 
-        myoConnector?.scan(50000, MyoConnector.ScannerCallback {
-            Logy.w("scannerCallback", "MYOS:" + it.size);
-            for (myo in it) {
-                Logy.w("Myo handler", "deviceName is ${myo.deviceAddress}")
-                if (!myos.contains(myo.deviceAddress)) {
-                    val myoview: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
-                    myo.addConnectionListener(this)
-                    myo.connect()
-                    myo.connectionSpeed = BaseMyo.ConnectionSpeed.HIGH
-                    myo.writeSleepMode(MyoCmds.SleepMode.NEVER, null)
-                    myo.writeMode(
-                        MyoCmds.EmgMode.FILTERED,
-                        MyoCmds.ImuMode.RAW,
-                        MyoCmds.ClassifierMode.DISABLED,
-                        null
-                    )
-                    myo.writeUnlock(MyoCmds.UnlockType.HOLD, null)
 
-                    lifecycleScope.launch {
-                        Logy.w("runnable", "Adding myoview to list!");
-                        Handler().postDelayed({
-                            myoview.setMyo(myo);
-                            binding.listMyos.addView(myoview)
-                        }, 5000)
-                    }
 
-                    myos.add(myo.deviceAddress)
-                }
-            }
-        })
+//        lifecycleScope.launch {
+//            Logy.w("runnable", "Adding myoview to list!");
+//            Handler().postDelayed({
+//                myoview.setMyo(myo);
+//                binding.listMyos.addView(myoview)
+//            }, 5000)
+//        }
 
         super.onViewCreated(view, savedInstanceState)
 
@@ -91,6 +93,45 @@ class FirstFragment : Fragment(), ConnectionListener {
             //myMyo?.writeVibrate(MyoCmds.VibrateType.SHORT, null)
             //myMyo?.writeLEDs(Color.valueOf(0f, 0f, 255f), Color.valueOf(0f, 0f, 255f), null)
         //}
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        Intent(context, MyosService::class.java).also { intent ->
+            requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
+
+        val mainHandler = Handler(Looper.getMainLooper())
+    }
+
+    public fun updateMyos() {
+        Logy.w(tag, "Update myos")
+
+        for (myo in mService.myos) {
+            val textView = TextView(context)
+            textView.text = myo;
+            binding.listMyos.addView(textView)
+        }
+
+        for (myo in mService.savedMyos) {
+            myo.value?.let {
+                val myoView: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
+                lifecycleScope.launch {
+                    Logy.w("runnable", "Adding myoview to list!");
+                    Handler().postDelayed({
+                        myoView.setMyo(it);
+                        binding.listMyos.addView(myoView)
+                    }, 5000)
+                }
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        requireContext().unbindService(connection)
+        mBound = false
     }
 
     override fun onResume() {
@@ -130,14 +171,5 @@ class FirstFragment : Fragment(), ConnectionListener {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-    }
-
-    override fun onConnectionStateChanged(myo: BaseMyo, state: BaseMyo.ConnectionState) {
-        Logy.d("ConnectionStateChanged", "Connection changed to: $state");
-        if (view == null) return
-
-        //if (state == BaseMyo.ConnectionState.DISCONNECTED) {
-        //    requireView().post { mContainer.removeView(mMyoViewMap.get(myo)) }
-        //}
     }
 }

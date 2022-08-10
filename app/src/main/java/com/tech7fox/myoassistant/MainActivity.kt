@@ -1,5 +1,6 @@
 package com.tech7fox.myoassistant
 
+import android.content.Intent
 import android.os.Bundle
 import com.google.android.material.snackbar.Snackbar
 import androidx.appcompat.app.AppCompatActivity
@@ -35,6 +36,8 @@ class MainActivity : AppCompatActivity() {
                     .setAnchorView(R.id.fab)
                     .setAction("Action", null).show()
         }
+
+        startService(Intent(this, MyosService::class.java))
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

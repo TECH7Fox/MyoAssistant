@@ -27,6 +27,8 @@
             </intent-filter>
         </receiver>
 
+        <service android:name=".MyosService"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
