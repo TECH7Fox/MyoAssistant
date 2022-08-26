@@ -10,25 +10,40 @@ import android.widget.EditText
 import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.tech7fox.myolink.BaseMyo
 import com.tech7fox.myolink.Myo
+import com.tech7fox.myolink.Myo.*
 import com.tech7fox.myolink.MyoCmds
 import com.tech7fox.myolink.MyoInfo
 import com.tech7fox.myolink.msgs.MyoMsg
+import com.tech7fox.myolink.processor.classifier.ClassifierEvent
+import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
+import com.tech7fox.myolink.processor.emg.EmgData
+import com.tech7fox.myolink.processor.emg.EmgProcessor
+import com.tech7fox.myolink.processor.imu.ImuData
+import com.tech7fox.myolink.processor.imu.ImuProcessor
 import com.tech7fox.myolink.tools.Logy
 
 class MyoView @JvmOverloads constructor(
     context: Context,
     attributeSet: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : RelativeLayout(context, attributeSet, defStyleAttr), Myo.FirmwareCallback, Myo.BatteryCallback, Myo.ReadDeviceNameCallback {
+) : RelativeLayout(context, attributeSet, defStyleAttr),
+    FirmwareCallback,
+    BatteryCallback,
+    ReadDeviceNameCallback, ClassifierProcessor.ClassifierEventListener,
+    EmgProcessor.EmgDataListener, ImuProcessor.ImuDataListener {
 
     //private val binding = ViewMyoBinding.inflate(LayoutInflater.from(context))
-    private lateinit var _myo: Myo
+    public lateinit var _myo: Myo
 
     private lateinit var tv_name: TextView
     private lateinit var tv_battery: TextView
     private lateinit var tv_firmware: TextView
     private lateinit var tv_address: TextView
+
+    private lateinit var mClassifierProcessor: ClassifierProcessor
+    //private lateinit var mEmgProcessor: EmgProcessor
 
     init {
         Logy.w("MyoView init", "kotlin init block called.")
@@ -47,6 +62,14 @@ class MyoView @JvmOverloads constructor(
         _myo.readDeviceName(this)
         _myo.readFirmware(this)
         _myo.readBatteryLevel(this)
+
+        mClassifierProcessor = ClassifierProcessor()
+        mClassifierProcessor.addListener(this)
+        myo.addProcessor(mClassifierProcessor)
+
+//        mEmgProcessor = EmgProcessor()
+//        mEmgProcessor.addListener(this)
+//        myo.addProcessor(mEmgProcessor)
     }
 
     override fun onFinishInflate() {
@@ -114,5 +137,19 @@ class MyoView @JvmOverloads constructor(
         handler.post {
             tv_name.text = p2
         }
+    }
+
+    override fun onClassifierEvent(p0: ClassifierEvent?) {
+        Logy.w("ClassifierEvent MyoView","got event!")
+        Logy.w("ClassifierEvent MyoView", p0?.type.toString())
+    }
+
+    override fun onNewEmgData(p0: EmgData?) {
+        Logy.w("onNewEmgData MyoView","got event!")
+        Logy.w("onNewEmgData MyoView", p0?.toString())
+    }
+
+    override fun onNewImuData(p0: ImuData?) {
+        TODO("Not yet implemented")
     }
 }

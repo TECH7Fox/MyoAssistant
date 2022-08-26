@@ -15,11 +15,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
+import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.tech7fox.myoassistant.databinding.FragmentFirstBinding
 import com.tech7fox.myolink.BaseMyo
 import com.tech7fox.myolink.BaseMyo.ConnectionListener
+import com.tech7fox.myolink.Myo
 import com.tech7fox.myolink.MyoCmds
 import com.tech7fox.myolink.MyoConnector
 import com.tech7fox.myolink.tools.Logy
@@ -101,8 +103,28 @@ class FirstFragment : Fragment() {
         Intent(context, MyosService::class.java).also { intent ->
             requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
+    }
 
-        val mainHandler = Handler(Looper.getMainLooper())
+    public fun removeMyo(myo: Myo) {
+        for (view in binding.listMyos.children) {
+             if ((view as MyoView)._myo.deviceAddress == myo.deviceAddress) {
+                 lifecycleScope.launch {
+                     Logy.w("removeMyo", "Removing myo ${myo.deviceAddress}!");
+                     binding.listMyos.removeView(view);
+                 }
+             }
+        }
+    }
+
+    public fun addMyo(myo: Myo) {
+        val myoView: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
+        lifecycleScope.launch {
+            Logy.w("runnable", "Adding myoview to list!");
+            Handler().postDelayed({
+                myoView.setMyo(myo);
+                binding.listMyos.addView(myoView)
+            }, 10000)
+        }
     }
 
     public fun updateMyos() {
@@ -122,7 +144,7 @@ class FirstFragment : Fragment() {
                     Handler().postDelayed({
                         myoView.setMyo(it);
                         binding.listMyos.addView(myoView)
-                    }, 5000)
+                    }, 7000)
                 }
             }
         }
