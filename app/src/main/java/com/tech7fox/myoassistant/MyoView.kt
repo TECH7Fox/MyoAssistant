@@ -18,6 +18,7 @@ import com.tech7fox.myolink.MyoInfo
 import com.tech7fox.myolink.msgs.MyoMsg
 import com.tech7fox.myolink.processor.classifier.ClassifierEvent
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
+import com.tech7fox.myolink.processor.classifier.PoseClassifierEvent
 import com.tech7fox.myolink.processor.emg.EmgData
 import com.tech7fox.myolink.processor.emg.EmgProcessor
 import com.tech7fox.myolink.processor.imu.ImuData
@@ -63,9 +64,9 @@ class MyoView @JvmOverloads constructor(
         _myo.readFirmware(this)
         _myo.readBatteryLevel(this)
 
-        mClassifierProcessor = ClassifierProcessor()
-        mClassifierProcessor.addListener(this)
-        myo.addProcessor(mClassifierProcessor)
+//        mClassifierProcessor = ClassifierProcessor()
+//        mClassifierProcessor.addListener(this)
+//        myo.addProcessor(mClassifierProcessor)
 
 //        mEmgProcessor = EmgProcessor()
 //        mEmgProcessor.addListener(this)
@@ -140,12 +141,14 @@ class MyoView @JvmOverloads constructor(
     }
 
     override fun onClassifierEvent(p0: ClassifierEvent?) {
-        Logy.w("ClassifierEvent MyoView","got event!")
         Logy.w("ClassifierEvent MyoView", p0?.type.toString())
+
+        if (p0?.type == ClassifierEvent.Type.POSE) {
+            Logy.w("POSE", (p0 as PoseClassifierEvent).pose.toString())
+        }
     }
 
     override fun onNewEmgData(p0: EmgData?) {
-        Logy.w("onNewEmgData MyoView","got event!")
         Logy.w("onNewEmgData MyoView", p0?.toString())
     }
 

@@ -13,7 +13,10 @@ import com.tech7fox.myolink.MyoConnector
 import com.tech7fox.myolink.processor.classifier.ClassifierEvent
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor.ClassifierEventListener
+import com.tech7fox.myolink.processor.classifier.PoseClassifierEvent
 import com.tech7fox.myolink.tools.Logy
+import java.io.DataOutputStream
+import java.net.URL
 
 class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener {
 
@@ -23,7 +26,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     private lateinit var myoConnector: MyoConnector
     public var myos: MutableList<String> = mutableListOf()
     public var savedMyos: HashMap<String, Myo?> = HashMap()
-    public var classifierProcessors: HashMap<String, ClassifierProcessor?> = HashMap()
+    private var classifierProcessors: HashMap<String, ClassifierProcessor?> = HashMap()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logy.w(tag, "Starting MyosService...")
@@ -50,11 +53,11 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         myo.connect()
 
                         // setup myo
-//                        classifierProcessors[myo.deviceAddress] = ClassifierProcessor()
-//                        classifierProcessors[myo.deviceAddress]?.addListener(this)
-//                        myo.addProcessor(classifierProcessors[myo.deviceAddress])
+                        classifierProcessors[myo.deviceAddress] = ClassifierProcessor()
+                        classifierProcessors[myo.deviceAddress]?.addListener(this)
+                        myo.addProcessor(classifierProcessors[myo.deviceAddress])
                     } else if (myo.connectionState == BaseMyo.ConnectionState.CONNECTED) { // else update myo
-                        //myo.readBatteryLevel(null)
+                        myo.readBatteryLevel(null)
                         //Logy.w(tag, "Updating ${myo.deviceAddress}")
                     }
                 } else {
@@ -116,11 +119,11 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                 if (myo !== null) {
                     Logy.w(tag, "Setting speed and options!")
                     with(myo) {
-                        connectionSpeed = BaseMyo.ConnectionSpeed.HIGH
+                        connectionSpeed = BaseMyo.ConnectionSpeed.BALANCED
                         writeSleepMode(MyoCmds.SleepMode.NORMAL, null)
                         writeMode(
-                            MyoCmds.EmgMode.FILTERED,
-                            MyoCmds.ImuMode.RAW,
+                            MyoCmds.EmgMode.NONE,
+                            MyoCmds.ImuMode.NONE,
                             MyoCmds.ClassifierMode.ENABLED,
                             null
                         )
@@ -141,7 +144,22 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     }
 
     override fun onClassifierEvent(p0: ClassifierEvent?) {
-        Logy.w("ClassifierEvent service","got event!")
         Logy.w("ClassifierEvent Service", p0?.type.toString())
+
+        if (p0?.type == ClassifierEvent.Type.POSE) {
+            val pose = (p0 as PoseClassifierEvent).pose.toString()
+            Logy.w("POSE", pose)
+        }
+
+        // send to Home Assistant
+//        val url = URL("http://homeassistant.local:8123/api/states/sensor.myo1")
+//        val postData = "{\"state\": \"${p0?.type.toString()}\"}"
+//
+//        val conn = url.openConnection()
+//        conn.doOutput = true
+//        conn.setRequestProperty("Content-Type", "application/json")
+//
+//        DataOutputStream(conn.getOutputStream()).use { it.writeBytes(postData) }
+//        Logy.w("url", conn.getOutputStream().toString())
     }
 }
