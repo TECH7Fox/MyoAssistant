@@ -16,22 +16,17 @@
             app:destination="@id/settingsFragment" />
         <action
             android:id="@+id/action_FirstFragment_to_scanFragment"
-            app:destination="@id/scanFragment" />
+            app:destination="@id/scanFragment"
+            app:enterAnim="@android:anim/slide_in_left"
+            app:exitAnim="@android:anim/slide_out_right"
+            app:launchSingleTop="false" />
     </fragment>
     <fragment
         android:id="@+id/settingsFragment"
         android:name="com.tech7fox.myoassistant.SettingsFragment"
-        android:label="SettingsFragment" >
-        <action
-            android:id="@+id/action_settingsFragment_to_FirstFragment"
-            app:destination="@id/FirstFragment" />
-    </fragment>
+        android:label="Settings" />
     <fragment
         android:id="@+id/scanFragment"
         android:name="com.tech7fox.myoassistant.ScanFragment"
-        android:label="ScanFragment" >
-        <action
-            android:id="@+id/action_scanFragment_to_FirstFragment"
-            app:destination="@id/FirstFragment" />
-    </fragment>
+        android:label="Manage Myo's" />
 </navigation>

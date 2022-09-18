@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.tech7fox.myoassistant.MyoDeviceView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:elevation="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingVertical="2dp"
+        android:paddingHorizontal="16dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/device_address"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            tools:text="00:00:00:00" />
+
+        <TextView
+            android:id="@+id/device_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            tools:text="connected" />
+
+        <Button
+            android:id="@+id/action_button"
+            style="@style/Widget.Material3.Button.IconButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:icon="@android:drawable/ic_input_add"
+            app:iconSize="24dp"
+            android:drawableTint="@color/material_on_surface_emphasis_high_type"
+            tools:ignore="SpeakableTextPresentCheck" />
+
+    </LinearLayout>
+
+</com.tech7fox.myoassistant.MyoDeviceView>

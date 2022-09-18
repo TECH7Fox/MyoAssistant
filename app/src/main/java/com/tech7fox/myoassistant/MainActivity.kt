@@ -17,6 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
+    private lateinit var menu: Menu
 
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -31,16 +32,13 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
-        binding.fab.setOnClickListener {
-            findNavController(R.id.nav_host_fragment_content_main).navigate(R.id.action_FirstFragment_to_scanFragment)
-        }
-
         startService(Intent(this, MyosService::class.java))
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
+        this.menu = menu
         return true
     }
 
@@ -50,7 +48,9 @@ class MainActivity : AppCompatActivity() {
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_settings -> {
-                findNavController(R.id.nav_host_fragment_content_main).navigate(R.id.action_FirstFragment_to_settingsFragment)
+                findNavController(R.id.nav_host_fragment_content_main).navigate(
+                    R.id.action_FirstFragment_to_settingsFragment
+                )
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -61,5 +61,9 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         return navController.navigateUp(appBarConfiguration)
                 || super.onSupportNavigateUp()
+    }
+
+    public fun setMenuVisibility(visible: Boolean) {
+        menu.setGroupVisible(0, visible)
     }
 }

@@ -15,16 +15,15 @@ import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor.ClassifierEventListener
 import com.tech7fox.myolink.processor.classifier.PoseClassifierEvent
 import com.tech7fox.myolink.tools.Logy
-import java.io.DataOutputStream
-import java.net.URL
 
 class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener {
 
     private val binder = LocalBinder()
-    public var fragment: FirstFragment? = null
+    public var firstFragment: FirstFragment? = null
+    public var scanFragment: ScanFragment? = null
     private val tag: String = "MyosService"
     private lateinit var myoConnector: MyoConnector
-    public var myos: MutableList<String> = mutableListOf()
+    //public var myos: MutableList<String> = mutableListOf()
     public var savedMyos: HashMap<String, Myo?> = HashMap()
     private var classifierProcessors: HashMap<String, ClassifierProcessor?> = HashMap()
 
@@ -32,12 +31,12 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         Logy.w(tag, "Starting MyosService...")
 
         //test data
-        savedMyos["E3:65:94:9C:0C:4F"] = null;
+        //savedMyos["E3:65:94:9C:0C:4F"] = null;
 
         myoConnector = MyoConnector(applicationContext)
 
         val scannerCallback = MyoConnector.ScannerCallback {
-            //Logy.w(tag, "MYOS:" + it.size);
+            Logy.w(tag, "MYOS:" + it.size);
 
             val newMyos: MutableList<String> = mutableListOf()
 
@@ -64,7 +63,8 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                     newMyos.add(myo.deviceAddress) // add to all list
                 }
             }
-            myos = newMyos
+            //myos = newMyos
+            scanFragment?.showMyos(newMyos)
         }
 
         val mainHandler = Handler(Looper.getMainLooper())
@@ -90,7 +90,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        fragment = null;
+        firstFragment = null;
         return super.onUnbind(intent)
     }
 
@@ -129,7 +129,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         )
                         writeUnlock(MyoCmds.UnlockType.HOLD, null)
                     }
-                    fragment?.addMyo(myo)
+                    firstFragment?.addMyo(myo)
                 }
             }, 10000)
         }
@@ -139,7 +139,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
 //        }
         else if (p1 == BaseMyo.ConnectionState.DISCONNECTED) {
             val myo = savedMyos[baseMyo?.deviceAddress]
-            if (myo !== null) fragment?.removeMyo(myo)
+            if (myo !== null) firstFragment?.removeMyo(myo)
         }
     }
 

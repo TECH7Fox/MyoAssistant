@@ -85,7 +85,7 @@ class MyoView @JvmOverloads constructor(
     override fun setOnClickListener(l: OnClickListener?) {
         Logy.w("myo", "click detected!")
         super.setOnClickListener(l)
-    }
+    } // remove this
 
     override fun onAttachedToWindow() {
 
