@@ -7,11 +7,17 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewParent
+import android.widget.Button
 import android.widget.TextView
 import androidx.core.view.children
+import androidx.core.view.isGone
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.tech7fox.myoassistant.databinding.FragmentScanBinding
+import com.tech7fox.myolink.Myo
+import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
+import com.tech7fox.myolink.tools.Logy
 import kotlinx.coroutines.launch
 
 /**
@@ -48,6 +54,7 @@ class ScanFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        savePreferences("")
         (requireActivity() as MainActivity).setMenuVisibility(false)
         _binding = FragmentScanBinding.inflate(inflater, container, false)
         return binding.root
@@ -71,21 +78,28 @@ class ScanFragment : Fragment() {
         super.onResume()
     }
 
-    fun showMyos(myos: MutableList<String>) {
+    fun showMyos(myos: HashMap<String, String>) {
         lifecycleScope.launch {
-            binding.myos.removeAllViews()
+            binding.newMyos.removeAllViews()
             for (myo in myos) {
-                val deviceView: MyoDeviceView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myodevice, binding.myos, false) as MyoDeviceView
-                deviceView.setStats(myo, false)
-                deviceView.setOnClickListener() {
-                    if (!mService.savedMyos.containsKey(myo)) {
-                        mService.savedMyos[myo] = null
-                    }
-                    savePreferences(mService.savedMyos.keys.joinToString(" "))
-                }
-                binding.myos.addView(deviceView)
+                binding.newMyos.addView(createDeviceView(myo.value, myo.key))
             }
         }
+    }
+
+    private fun createDeviceView(name: String, address: String) : MyoDeviceView {
+        val deviceView: MyoDeviceView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myodevice, binding.newMyos, false) as MyoDeviceView
+        deviceView.setStats(name, address)
+
+        val listener: View.OnClickListener = View.OnClickListener() {
+            if (!mService.savedMyos.containsKey(address)) mService.savedMyos[address] = null
+            Logy.w("added myo", address)
+            savePreferences(mService.savedMyos.keys.joinToString(" "))
+        }
+
+        deviceView.setOnClickListener(listener)
+
+        return deviceView
     }
 
     private fun savePreferences(myos: String) {

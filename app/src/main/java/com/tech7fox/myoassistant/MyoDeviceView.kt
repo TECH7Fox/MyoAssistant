@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.AttributeSet
 import android.view.View
+import android.widget.Button
 import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.core.view.isGone
 import com.tech7fox.myolink.tools.Logy
 import org.json.JSONArray
 import org.json.JSONStringer
@@ -16,20 +18,8 @@ class MyoDeviceView @JvmOverloads constructor(
     defStyle: Int = 0
 ) : RelativeLayout(context, attributeSet, defStyle) {
 
-    private lateinit var deviceAddress: String
-    private var saved: Boolean = false
-    private var state: String = ""
-
-    public fun setStats(deviceAddress: String, saved: Boolean) {
-        this.deviceAddress = deviceAddress
-        this.saved = saved
-
+    public fun setStats(deviceName: String, deviceAddress: String) {
+        findViewById<TextView>(R.id.device_name).text = deviceName
         findViewById<TextView>(R.id.device_address).text = deviceAddress
-    }
-
-    public fun setState(state: String) {
-        this.state = state
-
-        //findViewById<TextView>()
     }
 }

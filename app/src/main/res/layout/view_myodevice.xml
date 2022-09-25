@@ -11,33 +11,33 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:paddingVertical="2dp"
-        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:paddingHorizontal="24dp"
         android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="24dp"
+            android:src="@drawable/myo_icon"
+            android:contentDescription="myo icon" />
+
+        <TextView
+            android:id="@+id/device_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="24dp"
+            android:layout_weight="1"
+            android:textSize="18sp"
+            tools:text="MyMyo" />
 
         <TextView
             android:id="@+id/device_address"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:textSize="18sp"
             tools:text="00:00:00:00" />
-
-        <TextView
-            android:id="@+id/device_state"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            tools:text="connected" />
-
-        <Button
-            android:id="@+id/action_button"
-            style="@style/Widget.Material3.Button.IconButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:icon="@android:drawable/ic_input_add"
-            app:iconSize="24dp"
-            android:drawableTint="@color/material_on_surface_emphasis_high_type"
-            tools:ignore="SpeakableTextPresentCheck" />
 
     </LinearLayout>
 

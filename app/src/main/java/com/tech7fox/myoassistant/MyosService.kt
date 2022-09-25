@@ -1,6 +1,7 @@
 package com.tech7fox.myoassistant
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.os.Binder
 import android.os.Handler
@@ -30,6 +31,15 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logy.w(tag, "Starting MyosService...")
 
+        val savedMyosString: String =
+            getSharedPreferences("myo_assistant", Context.MODE_PRIVATE).getString("myos", "").toString()
+
+        Logy.w("OnStartCommand", savedMyosString)
+
+        for (myo in savedMyosString.split(" ")) {
+            if (myo.isNotEmpty()) savedMyos[myo] = null
+        }
+
         //test data
         //savedMyos["E3:65:94:9C:0C:4F"] = null;
 
@@ -38,7 +48,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         val scannerCallback = MyoConnector.ScannerCallback {
             Logy.w(tag, "MYOS:" + it.size);
 
-            val newMyos: MutableList<String> = mutableListOf()
+            val newMyos: HashMap<String, String> = HashMap()
 
             for (myo in it) {
 
@@ -47,7 +57,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         Logy.w(tag, "connecting to ${myo.deviceAddress}")
                         myo.addConnectionListener(this)
 
-                        savedMyos[myo.deviceAddress] = myo;
+                        savedMyos[myo.deviceAddress] = myo
 
                         myo.connect()
 
@@ -60,7 +70,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         //Logy.w(tag, "Updating ${myo.deviceAddress}")
                     }
                 } else {
-                    newMyos.add(myo.deviceAddress) // add to all list
+                    newMyos[myo.deviceAddress] = myo.deviceName // add to all list
                 }
             }
             //myos = newMyos
