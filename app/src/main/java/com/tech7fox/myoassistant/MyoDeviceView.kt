@@ -18,7 +18,10 @@ class MyoDeviceView @JvmOverloads constructor(
     defStyle: Int = 0
 ) : RelativeLayout(context, attributeSet, defStyle) {
 
+    public lateinit var deviceName: String
+
     public fun setStats(deviceName: String, deviceAddress: String) {
+        this.deviceName = deviceName
         findViewById<TextView>(R.id.device_name).text = deviceName
         findViewById<TextView>(R.id.device_address).text = deviceAddress
     }

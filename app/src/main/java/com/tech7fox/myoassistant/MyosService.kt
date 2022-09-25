@@ -61,19 +61,17 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
 
                         myo.connect()
 
-                        // setup myo
+                        // setup classifier
                         classifierProcessors[myo.deviceAddress] = ClassifierProcessor()
                         classifierProcessors[myo.deviceAddress]?.addListener(this)
                         myo.addProcessor(classifierProcessors[myo.deviceAddress])
                     } else if (myo.connectionState == BaseMyo.ConnectionState.CONNECTED) { // else update myo
                         myo.readBatteryLevel(null)
-                        //Logy.w(tag, "Updating ${myo.deviceAddress}")
                     }
                 } else {
                     newMyos[myo.deviceAddress] = myo.deviceName // add to all list
                 }
             }
-            //myos = newMyos
             scanFragment?.showMyos(newMyos)
         }
 
@@ -81,9 +79,8 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
 
         mainHandler.post(object : Runnable {
             override fun run() {
-                //Logy.w(tag, "Scan for myos...")
                 myoConnector.scan(5000, scannerCallback)
-                mainHandler.postDelayed(this, 30000)
+                mainHandler.postDelayed(this, 6000)
             }
         })
 
@@ -117,13 +114,9 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         Logy.w(tag, "myo object for ${baseMyo?.deviceAddress} is ${baseMyo?.isRunning}");
         if (p1 == BaseMyo.ConnectionState.CONNECTED) { // && baseMyo?.connectionSpeed !== BaseMyo.ConnectionSpeed.HIGH) {
             Logy.w(tag, "Starting delay!")
-            if (Looper.myLooper() == null) {
-                Looper.prepare()
-            }
 
-            val mainHandler = Handler(Looper.getMainLooper())
-
-            mainHandler.postDelayed({
+            if (Looper.myLooper() == null) Looper.prepare()
+            Handler(Looper.getMainLooper()).postDelayed({
                 Logy.w(tag, "Started! Getting myo...")
                 val myo = savedMyos[baseMyo?.deviceAddress]
                 if (myo !== null) {
@@ -139,7 +132,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         )
                         writeUnlock(MyoCmds.UnlockType.HOLD, null)
                     }
-                    firstFragment?.addMyo(myo)
+                    firstFragment?.setMyo(myo)
                 }
             }, 10000)
         }
@@ -149,7 +142,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
 //        }
         else if (p1 == BaseMyo.ConnectionState.DISCONNECTED) {
             val myo = savedMyos[baseMyo?.deviceAddress]
-            if (myo !== null) firstFragment?.removeMyo(myo)
+            if (myo !== null) firstFragment?.setState("Disconnected", myo.deviceAddress)
         }
     }
 

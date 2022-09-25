@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.View.OnClickListener
 import android.widget.EditText
@@ -31,128 +32,86 @@ class MyoView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : RelativeLayout(context, attributeSet, defStyleAttr),
     FirmwareCallback,
-    BatteryCallback,
-    ReadDeviceNameCallback, ClassifierProcessor.ClassifierEventListener,
-    EmgProcessor.EmgDataListener, ImuProcessor.ImuDataListener {
+    BatteryCallback {
 
     //private val binding = ViewMyoBinding.inflate(LayoutInflater.from(context))
-    public lateinit var _myo: Myo
+    var _myo: Myo? = null
 
-    private lateinit var tv_name: TextView
-    private lateinit var tv_battery: TextView
-    private lateinit var tv_firmware: TextView
-    private lateinit var tv_address: TextView
+    lateinit var address: String
 
-    private lateinit var mClassifierProcessor: ClassifierProcessor
-    //private lateinit var mEmgProcessor: EmgProcessor
-
-    init {
-        Logy.w("MyoView init", "kotlin init block called.")
-        //inflate(context, R.layout.view_myo, this)
-        Logy.w("MyoView init", "inflation started.")
-    }
-
-    public fun setMyo(myo: Myo) {
+    fun setMyo(myo: Myo) {
         Logy.w("MYO SET!", myo.deviceAddress)
-        _myo = myo;
+        _myo = myo
 
         Handler().post {
-            tv_address.text = _myo.deviceAddress;
+            findViewById<TextView>(R.id.tv_address).text = _myo!!.deviceAddress
+            findViewById<TextView>(R.id.tv_title).text = _myo!!.deviceName
         }
 
-        _myo.readDeviceName(this)
-        _myo.readFirmware(this)
-        _myo.readBatteryLevel(this)
+        _myo!!.readFirmware(this)
+        _myo!!.readBatteryLevel(this)
 
-//        mClassifierProcessor = ClassifierProcessor()
-//        mClassifierProcessor.addListener(this)
-//        myo.addProcessor(mClassifierProcessor)
-
-//        mEmgProcessor = EmgProcessor()
-//        mEmgProcessor.addListener(this)
-//        myo.addProcessor(mEmgProcessor)
+        setState("Connected")
     }
-
-    override fun onFinishInflate() {
-        Logy.w("onFinishInflate", "onFinishInflate() called.")
-        tv_name = findViewById<TextView>(R.id.tv_title)
-        tv_battery = findViewById<TextView>(R.id.tv_batterylevel)
-        tv_firmware = findViewById<TextView>(R.id.tv_firmware)
-        tv_address = findViewById<TextView>(R.id.tv_address)
-        super.onFinishInflate()
-    }
-
-    override fun setOnClickListener(l: OnClickListener?) {
-        Logy.w("myo", "click detected!")
-        super.setOnClickListener(l)
-    } // remove this
 
     override fun onAttachedToWindow() {
 
         this.setOnClickListener {
-            _myo.writeVibrate(MyoCmds.VibrateType.LONG, null)
-            _myo.writeLEDs(Color.valueOf(0f, 100f, 185f), Color.valueOf(0f, 185f, 0f), null)
+            if (_myo?.connectionState != BaseMyo.ConnectionState.CONNECTED) {
+                Toast.makeText(context, "Myo not connected.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            _myo!!.writeVibrate(MyoCmds.VibrateType.LONG, null)
+            _myo!!.writeLEDs(Color.valueOf(0f, 100f, 185f), Color.valueOf(0f, 185f, 0f), null)
         }
 
-        tv_name.setOnClickListener {
+        findViewById<TextView>(R.id.tv_title).setOnClickListener {
+            if (_myo?.connectionState != BaseMyo.ConnectionState.CONNECTED) {
+                Toast.makeText(context, "Myo not connected.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             val dialogBuilder = AlertDialog.Builder(
                 context
             )
                 .setTitle("Rename")
             val dialogContext = dialogBuilder.context
             val editText = EditText(dialogContext)
-            editText.setText(_myo.deviceName)
+            editText.setText(_myo!!.deviceName)
             dialogBuilder.setPositiveButton(
                 "Change"
-            ) { _, _ -> _myo.writeDeviceName(editText.text.toString(), null) }
+            ) { _, _ -> _myo!!.writeDeviceName(editText.text.toString(), null) }
             dialogBuilder.setView(editText).show()
         }
 
         super.onAttachedToWindow()
     }
 
-    override fun callOnClick(): Boolean {
-        Logy.w("myo", "click detected!")
-        return super.callOnClick()
+    fun setState(state: String) {
+        if (Looper.myLooper() == null) Looper.prepare()
+        Handler(Looper.getMainLooper()).post {
+            findViewById<TextView>(R.id.tv_state).text = state
+        }
     }
 
-    override fun setOnLongClickListener(l: OnLongClickListener?) {
-        Logy.w("long click", "Long click!")
-        _myo.writeVibrate(MyoCmds.VibrateType.LONG, null)
-        super.setOnLongClickListener(l)
+    fun setDeviceAddress(address: String) {
+        this.address = address
+        if (Looper.myLooper() == null) Looper.prepare()
+        Handler(Looper.getMainLooper()).post {
+            findViewById<TextView>(R.id.tv_address).text = address
+        }
     }
 
     override fun onFirmwareRead(p0: Myo?, p1: MyoMsg?, p2: String?) {
         handler.post {
-            tv_firmware.text = p2;
+            findViewById<TextView>(R.id.tv_firmware).text = p2
         }
     }
 
     override fun onBatteryLevelRead(p0: Myo?, p1: MyoMsg?, p2: Int) {
         handler.post {
-            tv_battery.text = "Battery: $p2%";
+            findViewById<TextView>(R.id.tv_batterylevel).text = "Battery: $p2%"
         }
-    }
-
-    override fun onDeviceNameRead(p0: Myo?, p1: MyoMsg?, p2: String?) {
-        handler.post {
-            tv_name.text = p2
-        }
-    }
-
-    override fun onClassifierEvent(p0: ClassifierEvent?) {
-        Logy.w("ClassifierEvent MyoView", p0?.type.toString())
-
-        if (p0?.type == ClassifierEvent.Type.POSE) {
-            Logy.w("POSE", (p0 as PoseClassifierEvent).pose.toString())
-        }
-    }
-
-    override fun onNewEmgData(p0: EmgData?) {
-        Logy.w("onNewEmgData MyoView", p0?.toString())
-    }
-
-    override fun onNewImuData(p0: ImuData?) {
-        TODO("Not yet implemented")
     }
 }

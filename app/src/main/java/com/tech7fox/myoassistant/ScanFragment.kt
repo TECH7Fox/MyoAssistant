@@ -9,7 +9,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewParent
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.view.children
 import androidx.core.view.isGone
 import androidx.lifecycle.lifecycleScope
@@ -95,6 +97,8 @@ class ScanFragment : Fragment() {
             if (!mService.savedMyos.containsKey(address)) mService.savedMyos[address] = null
             Logy.w("added myo", address)
             savePreferences(mService.savedMyos.keys.joinToString(" "))
+            Toast.makeText(context, "${(it as MyoDeviceView).deviceName} Added.", Toast.LENGTH_SHORT).show()
+            (it.parent as LinearLayout).removeView(it)
         }
 
         deviceView.setOnClickListener(listener)

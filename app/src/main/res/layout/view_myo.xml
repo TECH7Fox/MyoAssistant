@@ -30,6 +30,17 @@
         tools:text="Battery 00%" />
 
     <TextView
+        android:id="@+id/tv_state"
+        style="@style/TextAppearance.AppCompat.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@id/tv_address"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="100dp"
+        android:text="State"
+        tools:text="Disconnected" />
+
+    <TextView
         android:id="@+id/tv_firmware"
         style="@style/TextAppearance.AppCompat.Body1"
         android:layout_width="wrap_content"

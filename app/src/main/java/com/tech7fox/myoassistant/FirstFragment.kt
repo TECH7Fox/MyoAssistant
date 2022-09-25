@@ -47,6 +47,21 @@ class FirstFragment : Fragment() {
             mService = binder.getService()
             mService.firstFragment = this@FirstFragment;
             mBound = true
+
+            for (myo in mService.savedMyos) {
+                val myoView: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
+                myoView.setDeviceAddress(myo.key)
+
+                if (myo.value != null) {
+                    myoView.setMyo(myo.value!!)
+                    myoView.setState("Connected")
+                } else myoView.setState("Disconnected")
+
+                lifecycleScope.launch {
+                    Logy.w("runnable", "Adding myoview to list!");
+                    binding.listMyos.addView(myoView)
+                }
+            }
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
@@ -81,25 +96,15 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
     }
 
-    public fun removeMyo(myo: Myo) {
-        for (view in binding.listMyos.children) {
-             if ((view as MyoView)._myo.deviceAddress == myo.deviceAddress) {
-                 lifecycleScope.launch {
-                     Logy.w("removeMyo", "Removing myo ${myo.deviceAddress}!");
-                     binding.listMyos.removeView(view);
-                 }
-             }
+    public fun setMyo(myo: Myo) {
+        for (myoView in binding.listMyos.children) {
+            if ((myoView as MyoView).address == myo.deviceAddress) myoView.setMyo(myo)
         }
     }
 
-    public fun addMyo(myo: Myo) {
-        val myoView: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
-        lifecycleScope.launch {
-            Logy.w("runnable", "Adding myoview to list!");
-            Handler().postDelayed({
-                myoView.setMyo(myo);
-                binding.listMyos.addView(myoView)
-            }, 10000)
+    public fun setState(state: String, address: String) {
+        for (myoView in binding.listMyos.children) {
+            if ((myoView as MyoView).address == address) myoView.setState(state)
         }
     }
 
