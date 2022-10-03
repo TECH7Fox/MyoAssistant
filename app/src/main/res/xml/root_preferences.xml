@@ -5,7 +5,7 @@
         <EditTextPreference
             app:key="ha_ip"
             app:title="@string/ha_ip"
-            app:defaultValue="192.168.1.10:8123"
+            app:defaultValue="http://192.168.1.10:8123"
             app:useSimpleSummaryProvider="true" />
 
         <EditTextPreference

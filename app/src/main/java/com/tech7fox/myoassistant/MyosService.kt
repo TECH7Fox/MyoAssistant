@@ -3,10 +3,12 @@ package com.tech7fox.myoassistant
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import androidx.preference.PreferenceManager
 import com.tech7fox.myolink.BaseMyo
 import com.tech7fox.myolink.Myo
 import com.tech7fox.myolink.MyoCmds
@@ -16,6 +18,10 @@ import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor.ClassifierEventListener
 import com.tech7fox.myolink.processor.classifier.PoseClassifierEvent
 import com.tech7fox.myolink.tools.Logy
+import java.io.BufferedReader
+import java.io.DataOutputStream
+import java.io.InputStreamReader
+import java.net.URL
 
 class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener {
 
@@ -39,9 +45,6 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         for (myo in savedMyosString.split(" ")) {
             if (myo.isNotEmpty()) savedMyos[myo] = null
         }
-
-        //test data
-        //savedMyos["E3:65:94:9C:0C:4F"] = null;
 
         myoConnector = MyoConnector(applicationContext)
 
@@ -149,20 +152,32 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     override fun onClassifierEvent(p0: ClassifierEvent?) {
         Logy.w("ClassifierEvent Service", p0?.type.toString())
 
+        val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+
+        var state = p0?.type.toString()
+
         if (p0?.type == ClassifierEvent.Type.POSE) {
-            val pose = (p0 as PoseClassifierEvent).pose.toString()
-            Logy.w("POSE", pose)
+            state = (p0 as PoseClassifierEvent).pose.toString()
+            Logy.w("POSE", state)
         }
 
         // send to Home Assistant
-//        val url = URL("http://homeassistant.local:8123/api/states/sensor.myo1")
-//        val postData = "{\"state\": \"${p0?.type.toString()}\"}"
-//
-//        val conn = url.openConnection()
-//        conn.doOutput = true
-//        conn.setRequestProperty("Content-Type", "application/json")
-//
-//        DataOutputStream(conn.getOutputStream()).use { it.writeBytes(postData) }
-//        Logy.w("url", conn.getOutputStream().toString())
+        val url = URL(preferences.getString("ha_ip", "").toString() + "/api/states/sensor.myo1")
+        val postData = "{\"state\": \"$state\"}"
+
+        val conn = url.openConnection()
+        conn.doOutput = true
+        conn.setRequestProperty("Authorization", "Bearer " + preferences.getString("ha_bearer", "").toString())
+        conn.setRequestProperty("Content-Type", "application/json")
+
+        try {
+            DataOutputStream(conn.getOutputStream()).use { it.writeBytes(postData) }
+
+            BufferedReader(InputStreamReader(conn.getInputStream())).use { bf ->
+                Logy.w("API response", bf.toString())
+            }
+        } catch (error: Exception) {
+            Logy.w("API error", error.toString())
+        }
     }
 }
