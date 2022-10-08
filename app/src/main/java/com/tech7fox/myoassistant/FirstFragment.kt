@@ -48,6 +48,8 @@ class FirstFragment : Fragment() {
             mService.firstFragment = this@FirstFragment;
             mBound = true
 
+            binding.listMyos.removeAllViews()
+
             for (myo in mService.savedMyos) {
                 val myoView: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
                 myoView.setDeviceAddress(myo.key)
@@ -57,10 +59,7 @@ class FirstFragment : Fragment() {
                     myoView.setState("Connected")
                 } else myoView.setState("Disconnected")
 
-                lifecycleScope.launch {
-                    Logy.w("runnable", "Adding myoview to list!");
-                    binding.listMyos.addView(myoView)
-                }
+                binding.listMyos.addView(myoView)
             }
         }
 
@@ -90,10 +89,6 @@ class FirstFragment : Fragment() {
 
         return binding.root
 
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
     }
 
     public fun setMyo(myo: Myo) {
