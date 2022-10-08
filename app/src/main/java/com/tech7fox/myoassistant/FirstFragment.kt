@@ -58,16 +58,18 @@ class FirstFragment : Fragment() {
                 myoView.setDeviceAddress(myo.key)
 
                 val button = myoView.findViewById<Button>(R.id.menu_btn)
-                button.setOnClickListener {
-                    val popupMenu = PopupMenu(context, button)
+                val popupMenu = PopupMenu(context, button)
 
-                    popupMenu.menuInflater.inflate(R.menu.menu_myo, popupMenu.menu)
-                    popupMenu.setOnMenuItemClickListener {
-                        when(it.itemId) {
-                            R.id.delete_btn -> removeMyo(myoView, myo.key)
-                        }
-                        true
+                popupMenu.menuInflater.inflate(R.menu.menu_myo, popupMenu.menu)
+                popupMenu.setOnMenuItemClickListener {
+                    when(it.itemId) {
+                        R.id.delete_btn -> removeMyo(myoView, myo.key)
                     }
+                    true
+                }
+                button.setOnClickListener {
+                    Logy.w("myo menu button", "clicked!")
+                    popupMenu.show()
                 }
 
                 if (myo.value != null) {
@@ -109,6 +111,7 @@ class FirstFragment : Fragment() {
 
     fun removeMyo(myoView: MyoView, address: String) {
         binding.listMyos.removeView(myoView)
+        myoView._myo?.disconnect()
         mService.savedMyos.remove(address)
         mService.saveMyos()
     }
