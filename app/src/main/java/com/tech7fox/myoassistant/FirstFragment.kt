@@ -11,7 +11,10 @@ import android.os.IBinder
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.PopupMenu
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.view.children
 import androidx.fragment.app.Fragment
@@ -54,6 +57,19 @@ class FirstFragment : Fragment() {
                 val myoView: MyoView = LayoutInflater.from(requireActivity()).inflate(R.layout.view_myo, binding.listMyos, false) as MyoView
                 myoView.setDeviceAddress(myo.key)
 
+                val button = myoView.findViewById<Button>(R.id.menu_btn)
+                button.setOnClickListener {
+                    val popupMenu = PopupMenu(context, button)
+
+                    popupMenu.menuInflater.inflate(R.menu.menu_myo, popupMenu.menu)
+                    popupMenu.setOnMenuItemClickListener {
+                        when(it.itemId) {
+                            R.id.delete_btn -> removeMyo(myoView, myo.key)
+                        }
+                        true
+                    }
+                }
+
                 if (myo.value != null) {
                     myoView.setMyo(myo.value!!)
                     myoView.setState("Connected")
@@ -89,6 +105,12 @@ class FirstFragment : Fragment() {
 
         return binding.root
 
+    }
+
+    fun removeMyo(myoView: MyoView, address: String) {
+        binding.listMyos.removeView(myoView)
+        mService.savedMyos.remove(address)
+        mService.saveMyos()
     }
 
     public fun setMyo(myo: Myo) {

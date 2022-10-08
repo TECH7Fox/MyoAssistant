@@ -60,12 +60,13 @@
 
     <Button
         style="@style/Widget.Material3.Button.IconButton"
+        android:id="@+id/menu_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
         android:layout_marginEnd="5dp"
-        app:icon="@android:drawable/ic_dialog_info"
+        app:icon="@android:drawable/ic_menu_more"
         app:iconSize="20dp" />
 
 </com.tech7fox.myoassistant.MyoView>

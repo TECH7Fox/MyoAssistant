@@ -56,7 +56,6 @@ class ScanFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        savePreferences("")
         (requireActivity() as MainActivity).setMenuVisibility(false)
         _binding = FragmentScanBinding.inflate(inflater, container, false)
         return binding.root
@@ -96,19 +95,12 @@ class ScanFragment : Fragment() {
         val listener: View.OnClickListener = View.OnClickListener() {
             if (!mService.savedMyos.containsKey(address)) mService.savedMyos[address] = null
             Logy.w("added myo", address)
-            savePreferences(mService.savedMyos.keys.joinToString(" "))
+            mService.saveMyos()
             Toast.makeText(context, "${(it as MyoDeviceView).deviceName} Added.", Toast.LENGTH_SHORT).show()
             (it.parent as LinearLayout).removeView(it)
         }
 
         deviceView.setOnClickListener(listener)
-
         return deviceView
-    }
-
-    private fun savePreferences(myos: String) {
-        val editor: SharedPreferences.Editor = requireContext().getSharedPreferences("myo_assistant", Context.MODE_PRIVATE).edit()
-        editor.putString("myos", myos)
-        editor.apply()
     }
 }

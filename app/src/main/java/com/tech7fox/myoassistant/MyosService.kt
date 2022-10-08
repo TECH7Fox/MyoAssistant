@@ -112,6 +112,12 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         super.onTaskRemoved(rootIntent)
     }
 
+    fun saveMyos() {
+        val editor: SharedPreferences.Editor = getSharedPreferences("myo_assistant", Context.MODE_PRIVATE).edit()
+        editor.putString("myos", savedMyos.keys.joinToString(" "))
+        editor.apply()
+    }
+
     override fun onConnectionStateChanged(baseMyo: BaseMyo?, p1: BaseMyo.ConnectionState?) {
         Logy.w(tag, "Connection updated for ${baseMyo?.deviceAddress} to $p1");
         Logy.w(tag, "myo object for ${baseMyo?.deviceAddress} is ${baseMyo?.isRunning}");
