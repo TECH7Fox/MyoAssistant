@@ -12,9 +12,11 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  release:
+    types: [created]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -35,3 +37,20 @@ jobs:
         GPR_API_KEY: ${{ secrets.GITHUB_TOKEN }}
       with:
         arguments: build
+    
+    - name: Build Release APK
+      if: github.event_name == 'release'
+      uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
+      with:
+        arguments: assembleRelease
+    
+    - name: Upload Release APK
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./app/build/outputs/apk/release/app-release-unsigned.apk
+        asset_name: MyoAssistant-${{ github.event.release.tag_name }}.apk
+        asset_content_type: application/vnd.android.package-archive
