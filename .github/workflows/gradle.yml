@@ -52,6 +52,9 @@ jobs:
 
     - name: Build Release APK
       uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
+      env:
+        GPR_USR: ${{ github.repository_owner }}
+        GPR_API_KEY: ${{ secrets.GITHUB_TOKEN }}
       with:
         arguments: assembleRelease
 
