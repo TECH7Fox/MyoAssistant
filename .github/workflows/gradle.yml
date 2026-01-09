@@ -42,7 +42,7 @@ jobs:
       if: github.event_name == 'release'
       uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
       with:
-        arguments: assembleRelease
+        arguments: assembleDebug
     
     - name: Upload Release APK
       if: github.event_name == 'release'
