@@ -52,6 +52,11 @@ jobs:
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+      with:
+        sdk-components: |-
+          build-tools;30.0.2
+          platforms;android-30
+          platform-tools
 
     - name: Build Release APK
       uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
@@ -70,6 +75,8 @@ jobs:
         alias: ${{ secrets.ALIAS }}
         keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
         keyPassword: ${{ secrets.KEY_PASSWORD }}
+      env:
+        BUILD_TOOLS_VERSION: "30.0.2"
 
     - name: Upload Release APK
       uses: actions/upload-release-asset@v1
