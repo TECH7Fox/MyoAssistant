@@ -9,6 +9,15 @@ pluginManagement {
     }
 }
 
+def githubProps = new Properties()
+def githubFile = file("github.properties")
+
+if (githubFile.exists()) {
+    githubFile.withInputStream { stream ->
+        githubProps.load(stream)
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -16,8 +25,8 @@ dependencyResolutionManagement {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/TECH7Fox/myolink")
             credentials {
-                username = System.getenv("GPR_USR") ?: properties.get("gpr.usr")
-                password = System.getenv("GPR_API_KEY") ?: properties.get("gpr.key")
+                username = System.getenv("GPR_USR") ?: githubProps.getProperty("gpr.usr")
+                password = System.getenv("GPR_API_KEY") ?: githubProps.getProperty("gpr.key")
             }
         }
         google()

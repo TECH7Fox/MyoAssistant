@@ -17,13 +17,17 @@ import com.tech7fox.myolink.processor.classifier.ClassifierEvent
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor
 import com.tech7fox.myolink.processor.classifier.ClassifierProcessor.ClassifierEventListener
 import com.tech7fox.myolink.processor.classifier.PoseClassifierEvent
+import com.tech7fox.myolink.processor.imu.ImuProcessor
+import com.tech7fox.myolink.processor.imu.ImuData
+import com.tech7fox.myolink.processor.imu.ImuProcessor.ImuDataListener
 import com.tech7fox.myolink.tools.Logy
 import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
 import java.net.URL
+import org.json.JSONObject
 
-class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener {
+class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener, ImuDataListener {
 
     private val binder = LocalBinder()
     public var firstFragment: FirstFragment? = null
@@ -33,6 +37,8 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     //public var myos: MutableList<String> = mutableListOf()
     public var savedMyos: HashMap<String, Myo?> = HashMap()
     private var classifierProcessors: HashMap<String, ClassifierProcessor?> = HashMap()
+    private var ImuProcessors: HashMap<String, ImuProcessor?> = HashMap()
+    private var lastImuUpdate: Long = 0
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logy.w(tag, "Starting MyosService...")
@@ -68,6 +74,12 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         classifierProcessors[myo.deviceAddress] = ClassifierProcessor()
                         classifierProcessors[myo.deviceAddress]?.addListener(this)
                         myo.addProcessor(classifierProcessors[myo.deviceAddress])
+
+                        // setup IMU processor
+                        ImuProcessors[myo.deviceAddress] = ImuProcessor()
+                        ImuProcessors[myo.deviceAddress]?.addListener(this)
+                        myo.addProcessor(ImuProcessors[myo.deviceAddress])
+
                     } else if (myo.connectionState == BaseMyo.ConnectionState.CONNECTED) { // else update myo
                         myo.readBatteryLevel(null)
                     }
@@ -135,7 +147,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
                         writeSleepMode(MyoCmds.SleepMode.NORMAL, null)
                         writeMode(
                             MyoCmds.EmgMode.NONE,
-                            MyoCmds.ImuMode.NONE,
+                            MyoCmds.ImuMode.DATA,
                             MyoCmds.ClassifierMode.ENABLED,
                             null
                         )
@@ -156,34 +168,79 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     }
 
     override fun onClassifierEvent(p0: ClassifierEvent?) {
-        Logy.w("ClassifierEvent Service", p0?.type.toString())
+        Logy.w("ClassifierEvent Service", p0?.type. toString())
 
         val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
 
-        var state = p0?.type.toString()
+        var state = p0?.type. toString()
 
-        if (p0?.type == ClassifierEvent.Type.POSE) {
+        if (p0?.type == ClassifierEvent. Type.POSE) {
             state = (p0 as PoseClassifierEvent).pose.toString()
             Logy.w("POSE", state)
         }
 
         // send to Home Assistant
-        val url = URL(preferences.getString("ha_ip", "").toString() + "/api/states/sensor.myo1")
-        val postData = "{\"state\": \"$state\"}"
+        sendToHomeAssistant("sensor.myo1", state, null)
+    }
 
-        val conn = url.openConnection()
-        conn.doOutput = true
-        conn.setRequestProperty("Authorization", "Bearer " + preferences.getString("ha_bearer", "").toString())
-        conn.setRequestProperty("Content-Type", "application/json")
-
-        try {
-            DataOutputStream(conn.getOutputStream()).use { it.writeBytes(postData) }
-
-            BufferedReader(InputStreamReader(conn.getInputStream())).use { bf ->
-                Logy.w("API response", bf.toString())
-            }
-        } catch (error: Exception) {
-            Logy.w("API error", error.toString())
+    override fun onNewImuData(imuData: ImuData) {
+        // Throttle updates to avoid overwhelming Home Assistant (update every 500ms)
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastImuUpdate < 500) {
+            return
         }
+        lastImuUpdate = currentTime
+
+        val orientation = imuData.orientationData
+        val accelerometer = imuData.accelerometerData
+        val gyro = imuData.gyroData
+
+        // Create attributes object with IMU data
+        val attributes = JSONObject().apply {
+            put("orientation_w", String. format("%.3f", orientation[0]))
+            put("orientation_x", String.format("%.3f", orientation[1]))
+            put("orientation_y", String. format("%.3f", orientation[2]))
+            put("orientation_z", String.format("%.3f", orientation[3]))
+            put("accel_x", String.format("%.3f", accelerometer[0]))
+            put("accel_y", String.format("%.3f", accelerometer[1]))
+            put("accel_z", String.format("%.3f", accelerometer[2]))
+            put("gyro_x", String.format("%.3f", gyro[0]))
+            put("gyro_y", String.format("%.3f", gyro[1]))
+            put("gyro_z", String.format("%.3f", gyro[2]))
+        }
+
+        // Send IMU data to Home Assistant
+        sendToHomeAssistant("sensor.myo1_imu", "active", attributes)
+
+        Logy.v(tag, "Sent IMU data:  Orient=${ImuData.format(orientation)} Accel=${ImuData. format(accelerometer)} Gyro=${ImuData.format(gyro)}")
+    }
+
+    private fun sendToHomeAssistant(entityId: String, state: String, attributes: JSONObject?) {
+        Thread {
+            try {
+                val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+                val url = URL(preferences.getString("ha_ip", "").toString() + "/api/states/$entityId")
+
+                val postData = JSONObject().apply {
+                    put("state", state)
+                    if (attributes != null) {
+                        put("attributes", attributes)
+                    }
+                }. toString()
+
+                val conn = url.openConnection()
+                conn. doOutput = true
+                conn.setRequestProperty("Authorization", "Bearer " + preferences.getString("ha_bearer", "").toString())
+                conn.setRequestProperty("Content-Type", "application/json")
+
+                DataOutputStream(conn.outputStream).use { it.writeBytes(postData) }
+
+                BufferedReader(InputStreamReader(conn.inputStream)).use { bf ->
+                    Logy.v(tag, "HA API response for $entityId: ${bf.readText()}")
+                }
+            } catch (error: Exception) {
+                Logy.e(tag, "HA API error: $error")
+            }
+        }. start()
     }
 }
