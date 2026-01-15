@@ -45,6 +45,22 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     private var headingOffsets: HashMap<String, Double> = HashMap()
     private var latestYaw: HashMap<String, Double> = HashMap()
 
+    private var latestImuData: HashMap<String, ImuSnapshot> = HashMap()
+
+    data class ImuSnapshot(
+        val roll: Double,
+        val pitch:  Double,
+        val yaw:  Double,
+        val heading: Double,
+        val accelX: Double,
+        val accelY: Double,
+        val accelZ: Double,
+        val gyroX: Double,
+        val gyroY: Double,
+        val gyroZ: Double,
+        val timestamp: Long
+    )
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logy.w(tag, "Starting MyosService...")
 
@@ -175,28 +191,56 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     override fun onClassifierEvent(p0: ClassifierEvent?) {
         Logy.w("ClassifierEvent Service", p0?.type. toString())
 
-        val preferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        var state = p0?.type.toString()
+        var deviceAddress:  String? = null
 
-        var state = p0?.type. toString()
-
-        if (p0?.type == ClassifierEvent. Type.POSE) {
-            state = (p0 as PoseClassifierEvent).pose.toString()
+        if (p0?.type == ClassifierEvent.Type.POSE) {
+            val poseEvent = p0 as PoseClassifierEvent
+            state = poseEvent.pose.toString()
+            deviceAddress = poseEvent.deviceAddress // Get device address from event
             Logy.w("POSE", state)
         }
 
-        // send to Home Assistant
-        sendToHomeAssistant("sensor.myo1", state, null)
+        // Get latest IMU data for this device
+        val imuSnapshot = deviceAddress?.let { latestImuData[it] }
+
+        // Build attributes with IMU data
+        val attributes = if (imuSnapshot != null) {
+            JSONObject().apply {
+                // Gesture info
+                put("gesture", state)
+                put("device_address", deviceAddress)
+
+                // IMU data at time of gesture
+                put("roll", "%.1f".format(imuSnapshot.roll))
+                put("pitch", "%.1f".format(imuSnapshot.pitch))
+                put("yaw", "%.1f". format(imuSnapshot.yaw))
+                put("heading", "%.1f".format(imuSnapshot.heading))
+                put("heading_calibrated", headingOffsets[deviceAddress] != 0.0)
+
+                put("accel_x", "%.3f".format(imuSnapshot.accelX))
+                put("accel_y", "%.3f".format(imuSnapshot.accelY))
+                put("accel_z", "%.3f".format(imuSnapshot.accelZ))
+
+                put("gyro_x", "%.3f".format(imuSnapshot.gyroX))
+                put("gyro_y", "%.3f".format(imuSnapshot.gyroY))
+                put("gyro_z", "%.3f".format(imuSnapshot.gyroZ))
+
+                put("timestamp", imuSnapshot.timestamp)
+            }
+        } else {
+            JSONObject().apply {
+                put("gesture", state)
+                put("device_address", deviceAddress ?: "unknown")
+            }
+        }
+
+        // Send to Home Assistant - single sensor with gesture state and IMU attributes
+        sendToHomeAssistant("sensor.myo1", state, attributes)
     }
 
     override fun onNewImuData(imuData:  ImuData) {
-        // Throttle updates to avoid overwhelming Home Assistant (update every 500ms)
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastImuUpdate < 500) {
-            return
-        }
-        lastImuUpdate = currentTime
-
-        val orientation = imuData. orientationData
+        val orientation = imuData.orientationData
         val accelerometer = imuData.accelerometerData
         val gyro = imuData.gyroData
 
@@ -231,37 +275,19 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         while (heading >= 360) heading -= 360
 
         // Create attributes object with IMU data
-        val attributes = JSONObject().apply {
-            // Raw quaternion
-            put("orientation_w", "%.3f".format(w))
-            put("orientation_x", "%.3f".format(x))
-            put("orientation_y", "%.3f".format(y))
-            put("orientation_z", "%.3f".format(z))
-
-            // Euler angles in degrees
-            put("roll", "%.1f".format(rollDeg))
-            put("pitch", "%.1f".format(pitchDeg))
-            put("yaw", "%.1f". format(yawDeg))
-            put("heading", "%.1f".format(heading))
-            put("heading_calibrated", offset != 0.0)
-
-            // Accelerometer
-            put("accel_x", "%.3f".format(accelerometer[0]))
-            put("accel_y", "%.3f".format(accelerometer[1]))
-            put("accel_z", "%.3f".format(accelerometer[2]))
-
-            // Gyroscope
-            put("gyro_x", "%.3f".format(gyro[0]))
-            put("gyro_y", "%.3f".format(gyro[1]))
-            put("gyro_z", "%.3f".format(gyro[2]))
-        }
-
-        // Send IMU data to Home Assistant
-        sendToHomeAssistant("sensor.myo1_imu", "active", attributes)
-
-        Logy.v(tag, "Sent IMU data:  Roll=%.1f° Pitch=%.1f° Yaw=%.1f° Heading=%.1f°". format(
-            rollDeg, pitchDeg, yawDeg, heading
-        ))
+        latestImuData[deviceAddress] = ImuSnapshot(
+            roll = rollDeg,
+            pitch = pitchDeg,
+            yaw = yawDeg,
+            heading = heading,
+            accelX = accelerometer[0],
+            accelY = accelerometer[1],
+            accelZ = accelerometer[2],
+            gyroX = gyro[0],
+            gyroY = gyro[1],
+            gyroZ = gyro[2],
+            timestamp = System.currentTimeMillis()
+        )
     }
 
     fun calibrateHeading(deviceAddress: String) {
