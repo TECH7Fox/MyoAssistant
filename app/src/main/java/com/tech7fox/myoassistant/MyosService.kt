@@ -242,17 +242,26 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         
         // Initialize filtered values if first time for this device
         if (!filteredRoll.containsKey(deviceAddress)) {
-            filteredRoll[deviceAddress] = rollDeg
-            filteredPitch[deviceAddress] = pitchDeg
+            // First time: use accelerometer as initial value (most accurate for static state)
+            filteredRoll[deviceAddress] = accelRoll
+            filteredPitch[deviceAddress] = accelPitch
         }
         
         // Apply complementary filter to fuse gyro-based (quaternion) and accelerometer data
         // This reduces drift while maintaining responsiveness
-        // Blend current quaternion-based angles with accelerometer angles
-        val correctedRoll = COMPLEMENTARY_FILTER_ALPHA * rollDeg + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelRoll
-        val correctedPitch = COMPLEMENTARY_FILTER_ALPHA * pitchDeg + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelPitch
+        // Use previous filtered value with quaternion update, then correct with accelerometer
+        val prevRoll = filteredRoll[deviceAddress]!!
+        val prevPitch = filteredPitch[deviceAddress]!!
         
-        // Store filtered values for next iteration (for future enhancements)
+        // Calculate the change from previous filtered value using quaternion
+        val rollDelta = rollDeg - prevRoll
+        val pitchDelta = pitchDeg - prevPitch
+        
+        // Apply complementary filter: blend quaternion change with accelerometer reading
+        val correctedRoll = COMPLEMENTARY_FILTER_ALPHA * (prevRoll + rollDelta) + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelRoll
+        val correctedPitch = COMPLEMENTARY_FILTER_ALPHA * (prevPitch + pitchDelta) + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelPitch
+        
+        // Store filtered values for next iteration
         filteredRoll[deviceAddress] = correctedRoll
         filteredPitch[deviceAddress] = correctedPitch
 
