@@ -26,6 +26,9 @@ import java.io.DataOutputStream
 import java.io.InputStreamReader
 import java.net.URL
 import org.json.JSONObject
+import kotlin.math.asin
+import kotlin.math.atan2
+import androidx.core.content.edit
 
 class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener, ImuDataListener {
 
@@ -39,6 +42,8 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     private var classifierProcessors: HashMap<String, ClassifierProcessor?> = HashMap()
     private var ImuProcessors: HashMap<String, ImuProcessor?> = HashMap()
     private var lastImuUpdate: Long = 0
+    private var headingOffsets: HashMap<String, Double> = HashMap()
+    private var latestYaw: HashMap<String, Double> = HashMap()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logy.w(tag, "Starting MyosService...")
@@ -183,7 +188,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         sendToHomeAssistant("sensor.myo1", state, null)
     }
 
-    override fun onNewImuData(imuData: ImuData) {
+    override fun onNewImuData(imuData:  ImuData) {
         // Throttle updates to avoid overwhelming Home Assistant (update every 500ms)
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastImuUpdate < 500) {
@@ -191,28 +196,102 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         }
         lastImuUpdate = currentTime
 
-        val orientation = imuData.orientationData
+        val orientation = imuData. orientationData
         val accelerometer = imuData.accelerometerData
         val gyro = imuData.gyroData
 
+        // Convert quaternion to Euler angles (roll, pitch, yaw)
+        val w = orientation[0]
+        val x = orientation[1]
+        val y = orientation[2]
+        val z = orientation[3]
+
+        // Calculate Euler angles in radians
+        val roll = atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+        val pitch = asin(2.0 * (w * y - z * x))
+        val yaw = atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+
+        // Convert to degrees
+        val rollDeg = Math.toDegrees(roll)
+        val pitchDeg = Math.toDegrees(pitch)
+        val yawDeg = Math. toDegrees(yaw)
+
+        // Store latest yaw for this device
+        val deviceAddress = imuData.deviceAddress
+        latestYaw[deviceAddress] = yawDeg
+
+        // Get heading offset for this device (default to 0)
+        val offset = headingOffsets[deviceAddress] ?: 0.0
+
+        // Apply heading offset for calibration
+        var heading = yawDeg - offset
+
+        // Normalize to 0-360 degrees
+        while (heading < 0) heading += 360
+        while (heading >= 360) heading -= 360
+
         // Create attributes object with IMU data
         val attributes = JSONObject().apply {
-            put("orientation_w", String. format("%.3f", orientation[0]))
-            put("orientation_x", String.format("%.3f", orientation[1]))
-            put("orientation_y", String. format("%.3f", orientation[2]))
-            put("orientation_z", String.format("%.3f", orientation[3]))
-            put("accel_x", String.format("%.3f", accelerometer[0]))
-            put("accel_y", String.format("%.3f", accelerometer[1]))
-            put("accel_z", String.format("%.3f", accelerometer[2]))
-            put("gyro_x", String.format("%.3f", gyro[0]))
-            put("gyro_y", String.format("%.3f", gyro[1]))
-            put("gyro_z", String.format("%.3f", gyro[2]))
+            // Raw quaternion
+            put("orientation_w", "%.3f".format(w))
+            put("orientation_x", "%.3f".format(x))
+            put("orientation_y", "%.3f".format(y))
+            put("orientation_z", "%.3f".format(z))
+
+            // Euler angles in degrees
+            put("roll", "%.1f".format(rollDeg))
+            put("pitch", "%.1f".format(pitchDeg))
+            put("yaw", "%.1f". format(yawDeg))
+            put("heading", "%.1f".format(heading))
+            put("heading_calibrated", offset != 0.0)
+
+            // Accelerometer
+            put("accel_x", "%.3f".format(accelerometer[0]))
+            put("accel_y", "%.3f".format(accelerometer[1]))
+            put("accel_z", "%.3f".format(accelerometer[2]))
+
+            // Gyroscope
+            put("gyro_x", "%.3f".format(gyro[0]))
+            put("gyro_y", "%.3f".format(gyro[1]))
+            put("gyro_z", "%.3f".format(gyro[2]))
         }
 
         // Send IMU data to Home Assistant
         sendToHomeAssistant("sensor.myo1_imu", "active", attributes)
 
-        Logy.v(tag, "Sent IMU data:  Orient=${ImuData.format(orientation)} Accel=${ImuData. format(accelerometer)} Gyro=${ImuData.format(gyro)}")
+        Logy.v(tag, "Sent IMU data:  Roll=%.1f° Pitch=%.1f° Yaw=%.1f° Heading=%.1f°". format(
+            rollDeg, pitchDeg, yawDeg, heading
+        ))
+    }
+
+    fun calibrateHeading(deviceAddress: String) {
+        val currentYaw = latestYaw[deviceAddress]
+        if (currentYaw != null) {
+            headingOffsets[deviceAddress] = currentYaw
+            Logy.w(tag, "Heading calibrated for $deviceAddress with offset: $currentYaw°")
+
+            // Save to preferences
+            val preferences = getSharedPreferences("myo_assistant", Context.MODE_PRIVATE)
+            preferences.edit { putFloat("heading_offset_$deviceAddress", currentYaw.toFloat()) }
+
+            // Notify user via toast on main thread
+            Handler(Looper.getMainLooper()).post {
+                android.widget.Toast.makeText(
+                    applicationContext,
+                    "Heading calibrated! ",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else {
+            Logy.e(tag, "Cannot calibrate - no IMU data received yet for $deviceAddress")
+            Handler(Looper.getMainLooper()).post {
+                android. widget.Toast.makeText(
+                    applicationContext,
+                    "Wait for IMU data before calibrating",
+                    android. widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 
     private fun sendToHomeAssistant(entityId: String, state: String, attributes: JSONObject?) {

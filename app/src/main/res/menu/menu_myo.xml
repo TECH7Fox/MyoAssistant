@@ -4,5 +4,8 @@
     <item
         android:id="@+id/delete_btn"
         android:title="Remove Myo" />
+    <item
+        android:id="@+id/calibrate_btn"
+        android:title="Calibrate Heading" />
 
 </menu>

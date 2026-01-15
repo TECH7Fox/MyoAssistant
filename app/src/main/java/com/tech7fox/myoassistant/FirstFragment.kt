@@ -64,6 +64,7 @@ class FirstFragment : Fragment() {
                 popupMenu.setOnMenuItemClickListener {
                     when(it.itemId) {
                         R.id.delete_btn -> removeMyo(myoView, myo.key)
+                        R.id.calibrate_btn -> mService.calibrateHeading(myo.key)
                     }
                     true
                 }
