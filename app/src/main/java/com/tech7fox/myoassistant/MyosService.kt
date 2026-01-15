@@ -28,6 +28,9 @@ import java.net.URL
 import org.json.JSONObject
 import kotlin.math.asin
 import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import androidx.core.content.edit
 
 class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListener, ImuDataListener {
@@ -44,6 +47,14 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
     private var lastImuUpdate: Long = 0
     private var headingOffsets: HashMap<String, Double> = HashMap()
     private var latestYaw: HashMap<String, Double> = HashMap()
+    
+    // Complementary filter coefficient (0.0 = all accelerometer, 1.0 = all gyro/quaternion)
+    // 0.98 means 98% gyro and 2% accelerometer - good balance for drift correction
+    private val COMPLEMENTARY_FILTER_ALPHA = 0.98
+    
+    // Store filtered roll and pitch for each device
+    private var filteredRoll: HashMap<String, Double> = HashMap()
+    private var filteredPitch: HashMap<String, Double> = HashMap()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Logy.w(tag, "Starting MyosService...")
@@ -206,7 +217,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         val y = orientation[2]
         val z = orientation[3]
 
-        // Calculate Euler angles in radians
+        // Calculate Euler angles from quaternion in radians
         val roll = atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
         val pitch = asin(2.0 * (w * y - z * x))
         val yaw = atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
@@ -214,17 +225,71 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         // Convert to degrees
         val rollDeg = Math.toDegrees(roll)
         val pitchDeg = Math.toDegrees(pitch)
-        val yawDeg = Math. toDegrees(yaw)
+        val yawDeg = Math.toDegrees(yaw)
+        
+        // DRIFT CORRECTION: Use accelerometer to calculate roll and pitch from gravity
+        val accelX = accelerometer[0]
+        val accelY = accelerometer[1]
+        val accelZ = accelerometer[2]
+        
+        // Calculate roll and pitch from accelerometer (gravity vector)
+        // These are drift-free because they're based on gravity
+        val accelRoll = Math.toDegrees(atan2(accelY, accelZ))
+        val accelPitch = Math.toDegrees(atan2(-accelX, sqrt(accelY * accelY + accelZ * accelZ)))
+        
+        // Get device address for per-device filtering
+        val deviceAddress = imuData.deviceAddress
+        
+        // Initialize filtered values if first time for this device
+        if (!filteredRoll.containsKey(deviceAddress)) {
+            // First time: use accelerometer as initial value (most accurate for static state)
+            filteredRoll[deviceAddress] = accelRoll
+            filteredPitch[deviceAddress] = accelPitch
+        }
+        
+        // Apply complementary filter to fuse gyro-based (quaternion) and accelerometer data
+        // This reduces drift while maintaining responsiveness
+        // Use previous filtered value with quaternion update, then correct with accelerometer
+        val prevRoll = filteredRoll[deviceAddress]!!
+        val prevPitch = filteredPitch[deviceAddress]!!
+        
+        // Calculate the change from previous filtered value using quaternion
+        val rollDelta = rollDeg - prevRoll
+        val pitchDelta = pitchDeg - prevPitch
+        
+        // Apply complementary filter: blend quaternion change with accelerometer reading
+        val correctedRoll = COMPLEMENTARY_FILTER_ALPHA * (prevRoll + rollDelta) + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelRoll
+        val correctedPitch = COMPLEMENTARY_FILTER_ALPHA * (prevPitch + pitchDelta) + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelPitch
+        
+        // Store filtered values for next iteration
+        filteredRoll[deviceAddress] = correctedRoll
+        filteredPitch[deviceAddress] = correctedPitch
 
         // Store latest yaw for this device
-        val deviceAddress = imuData.deviceAddress
         latestYaw[deviceAddress] = yawDeg
 
         // Get heading offset for this device (default to 0)
         val offset = headingOffsets[deviceAddress] ?: 0.0
 
+        // Calculate tilt-compensated heading using corrected roll and pitch
+        // This accounts for device tilt when calculating magnetic/gyro heading
+        val rollRad = Math.toRadians(correctedRoll)
+        val pitchRad = Math.toRadians(correctedPitch)
+        val yawRad = Math.toRadians(yawDeg)
+        
+        // Tilt compensation formulas
+        val cosRoll = cos(rollRad)
+        val sinRoll = sin(rollRad)
+        val cosPitch = cos(pitchRad)
+        val sinPitch = sin(pitchRad)
+        
+        // Calculate tilt-compensated heading
+        val Xh = cos(yawRad) * cosPitch + sin(yawRad) * sinPitch * sinRoll
+        val Yh = sin(yawRad) * cosRoll
+        val tiltCompensatedYaw = Math.toDegrees(atan2(Yh, Xh))
+
         // Apply heading offset for calibration
-        var heading = yawDeg - offset
+        var heading = tiltCompensatedYaw - offset
 
         // Normalize to 0-360 degrees
         while (heading < 0) heading += 360
@@ -238,12 +303,13 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
             put("orientation_y", "%.3f".format(y))
             put("orientation_z", "%.3f".format(z))
 
-            // Euler angles in degrees
-            put("roll", "%.1f".format(rollDeg))
-            put("pitch", "%.1f".format(pitchDeg))
-            put("yaw", "%.1f". format(yawDeg))
+            // Euler angles in degrees (drift-corrected)
+            put("roll", "%.1f".format(correctedRoll))
+            put("pitch", "%.1f".format(correctedPitch))
+            put("yaw", "%.1f".format(yawDeg))
             put("heading", "%.1f".format(heading))
             put("heading_calibrated", offset != 0.0)
+            put("drift_corrected", true)
 
             // Accelerometer
             put("accel_x", "%.3f".format(accelerometer[0]))
@@ -259,8 +325,8 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         // Send IMU data to Home Assistant
         sendToHomeAssistant("sensor.myo1_imu", "active", attributes)
 
-        Logy.v(tag, "Sent IMU data:  Roll=%.1f° Pitch=%.1f° Yaw=%.1f° Heading=%.1f°". format(
-            rollDeg, pitchDeg, yawDeg, heading
+        Logy.v(tag, "Sent IMU data: Roll=%.1f° Pitch=%.1f° Yaw=%.1f° Heading=%.1f° (corrected)".format(
+            correctedRoll, correctedPitch, yawDeg, heading
         ))
     }
 
