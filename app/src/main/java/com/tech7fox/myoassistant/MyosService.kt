@@ -225,7 +225,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         // Convert to degrees
         val rollDeg = Math.toDegrees(roll)
         val pitchDeg = Math.toDegrees(pitch)
-        val yawDeg = Math. toDegrees(yaw)
+        val yawDeg = Math.toDegrees(yaw)
         
         // DRIFT CORRECTION: Use accelerometer to calculate roll and pitch from gravity
         val accelX = accelerometer[0]
@@ -248,10 +248,11 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         
         // Apply complementary filter to fuse gyro-based (quaternion) and accelerometer data
         // This reduces drift while maintaining responsiveness
+        // Blend current quaternion-based angles with accelerometer angles
         val correctedRoll = COMPLEMENTARY_FILTER_ALPHA * rollDeg + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelRoll
         val correctedPitch = COMPLEMENTARY_FILTER_ALPHA * pitchDeg + (1 - COMPLEMENTARY_FILTER_ALPHA) * accelPitch
         
-        // Store filtered values for next iteration
+        // Store filtered values for next iteration (for future enhancements)
         filteredRoll[deviceAddress] = correctedRoll
         filteredPitch[deviceAddress] = correctedPitch
 
@@ -296,7 +297,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
             // Euler angles in degrees (drift-corrected)
             put("roll", "%.1f".format(correctedRoll))
             put("pitch", "%.1f".format(correctedPitch))
-            put("yaw", "%.1f". format(yawDeg))
+            put("yaw", "%.1f".format(yawDeg))
             put("heading", "%.1f".format(heading))
             put("heading_calibrated", offset != 0.0)
             put("drift_corrected", true)
@@ -315,7 +316,7 @@ class MyosService : Service(), BaseMyo.ConnectionListener, ClassifierEventListen
         // Send IMU data to Home Assistant
         sendToHomeAssistant("sensor.myo1_imu", "active", attributes)
 
-        Logy.v(tag, "Sent IMU data:  Roll=%.1f° Pitch=%.1f° Yaw=%.1f° Heading=%.1f° (corrected)". format(
+        Logy.v(tag, "Sent IMU data: Roll=%.1f° Pitch=%.1f° Yaw=%.1f° Heading=%.1f° (corrected)".format(
             correctedRoll, correctedPitch, yawDeg, heading
         ))
     }
